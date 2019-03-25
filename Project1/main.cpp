@@ -74,31 +74,31 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 	*/
 	vision.ParseFromArray(pszRecv, 4096);
 	if (MyRobotBlue) {
-		for (int i = 0; i < vision.robots_blue_size; i++) {
+		for (int i = 0; i < vision.robots_blue_size(); i++) {
 			auto car = vision.robots_blue(i);
-			if (car.robot_id == MyRobotID) {
+			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
 			}
 			else {
 				obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 			}
 		}
-		for (int i = 0; i < vision.robots_yellow_size; i++) {
+		for (int i = 0; i < vision.robots_yellow_size(); i++) {
 			auto car = vision.robots_blue(i);
 			obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
 	}
 	else {
-		for (int i = 0; i < vision.robots_yellow_size; i++) {
+		for (int i = 0; i < vision.robots_yellow_size(); i++) {
 			auto car = vision.robots_yellow(i);
-			if (car.robot_id == MyRobotID) {
+			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
 			}
 			else {
 				obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 			}
 		}
-		for (int i = 0; i < vision.robots_blue_size; i++) {
+		for (int i = 0; i < vision.robots_blue_size(); i++) {
 			auto car = vision.robots_yellow(i);
 			obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
@@ -109,8 +109,8 @@ void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& er
 	Coord goal = errtpath[1];
 	double dist = start.dist(goal);
 	double gamma = 1;
-	vtang = (start.x - goal.x) / dist * gamma;
-	vnorm = (start.y - goal.y) / dist * gamma;
+	vtang = (start.getX() - goal.getX()) / dist * gamma;
+	vnorm = (start.getY() - goal.getY()) / dist * gamma;
 	vangl = 0;
 }
 int main(void)
@@ -147,7 +147,7 @@ int main(void)
 	while (true) {
 		Robot myRobot;
 		RobotVector obsRobot;
-		Coord goal;
+		Coord goal(200,300);
 		int dwSendSize = 0; 
 		int nRet = 0; // 接收的数据长度
 		dwSendSize = sizeof(si_remote); //本地接收变量的大小
@@ -227,15 +227,18 @@ int main(void)
 	return 0;
 
 }
+/*
 float clip(float num, const float min, const float max) {
-	if (num > max) num = max;
-	else if (num < min) num = min;
-	return num;
+if (num > max) num = max;
+else if (num < min) num = min;
+return num;
 }
 float angle_normalize(float angle) {
-	if (angle > pi)	angle -= 2 * pi;
-	else if (angle < -pi) angle += 2 * pi;
-	return angle;
+if (angle > pi)	angle -= 2 * pi;
+else if (angle < -pi) angle += 2 * pi;
+return angle;
 }
+*/
+
 
 
