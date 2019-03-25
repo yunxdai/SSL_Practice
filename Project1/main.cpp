@@ -14,7 +14,6 @@ using namespace std;
 #pragma comment(lib, "libprotobuf.lib")
 #pragma comment(lib, "ws2_32.lib")
 
-void generateMotion(float &vx, float &w, float ball_x, float ball_y, float ball_vx, float ball_vy, float car_x, float car_y, float car_vx, float car_vy, float car_ort, float car_w);
 float angle_normalize(float angle);
 float clip(float num, const float min, const float max);
 
@@ -105,7 +104,15 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 		}
 	}
 }
-
+void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& errtpath) {
+	Coord start = errtpath[0];
+	Coord goal = errtpath[1];
+	double dist = start.dist(goal);
+	double gamma = 1;
+	vtang = (start.x - goal.x) / dist * gamma;
+	vnorm = (start.y - goal.y) / dist * gamma;
+	vangl = 0;
+}
 int main(void)
 {
 
@@ -136,9 +143,11 @@ int main(void)
 
 
 	int loop = 0;
+	CoordVector PastSuccess;
 	while (true) {
 		Robot myRobot;
 		RobotVector obsRobot;
+		Coord goal;
 		int dwSendSize = 0; 
 		int nRet = 0; // 接收的数据长度
 		dwSendSize = sizeof(si_remote); //本地接收变量的大小
@@ -155,7 +164,7 @@ int main(void)
 		}
 		else {
 			// 处理输入数据
-			HandleRecvData(vision,pszRecv, obsRobot, myRobot);
+			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
 			/*auto ball = vision.balls();
 			ball_x = ball.x();
 			ball_y = ball.y();
@@ -178,6 +187,17 @@ int main(void)
 				}
 			}*/
 		}
+		// ERRT PLANNING
+		ERRTPlanner errt_planner = ERRTPlanner(myRobot, goal, obsRobot, PastSuccess);
+		CoordVector errt_path;
+		if (errt_planner.findERRTPath(errt_path) == false) return 0;
+		double vtang, vnorm, vangl;
+		generateMotion(vtang, vnorm, vangl, errt_path);
+		/*
+		TODO: 讨论errt里findnearestP和generatenewP
+		1. 接口对应问题
+		2. 是否需要直接append
+		*/
 		// 根据输入产生输出
 		/*
 		TODO: ERRT PLANNING
@@ -218,15 +238,4 @@ float angle_normalize(float angle) {
 	return angle;
 }
 
-void generateMotion(float &vx, float &w, float ball_x, float ball_y, float ball_vx, float ball_vy, float car_x, float car_y, float car_vx, float car_vy, float car_ort, float car_w) {
-	float robot2ball_theta = atan2(ball_y - car_y, ball_x - car_x);
-	float del_theta = angle_normalize(robot2ball_theta - car_ort);
-	cout << "del_theta: " << del_theta << endl;
-	float vel;
-	if (abs(del_theta) < 5.0 / 180 * pi) vel = 2;
-	else if (abs(del_theta) < 10.0 / 180 * pi) vel = 1.0;
-	else if (abs(del_theta) < 30.0 / 180 * pi) vel = 0.5;
-	else vel = 0;
-	vx = clip(vel, -3, 3);
-	w = clip(del_theta, -2, 2);
-}
+
