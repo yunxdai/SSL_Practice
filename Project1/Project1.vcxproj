@@ -32,9 +32,9 @@
     <ClCompile Include="grSim_Commands.pb.cc" />
     <ClCompile Include="grSim_Packet.pb.cc" />
     <ClCompile Include="grSim_Replacement.pb.cc" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="Motion_Info.cpp" />
     <ClCompile Include="vision_detection.pb.cc" />
-    <ClCompile Include="write.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

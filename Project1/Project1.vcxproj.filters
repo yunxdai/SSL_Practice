@@ -47,9 +47,6 @@
     <ClCompile Include="vision_detection.pb.cc">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="write.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Motion_Info.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -57,6 +54,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ERRT.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
