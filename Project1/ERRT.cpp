@@ -131,7 +131,9 @@ bool ERRTPlanner::findERRTPath(CoordVector& trajVec) {
 		TNodeVector path;
 		CoordVector sPath;
 		int i, len;
-		trajVec.swap(CoordVector(trajVec));
+		trajVec.clear();
+		trajVec.shrink_to_fit();
+		// trajVec.swap((CoordVector)trajVec);
 		findPath(path);
 		smoothPath(path, sPath);
 		len = sPath.size();

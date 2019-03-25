@@ -14,7 +14,6 @@ using namespace std;
 #pragma comment(lib, "libprotobuf.lib")
 #pragma comment(lib, "ws2_32.lib")
 
-void generateMotion(float &vx, float &w, float ball_x, float ball_y, float ball_vx, float ball_vy, float car_x, float car_y, float car_vx, float car_vy, float car_ort, float car_w);
 float angle_normalize(float angle);
 float clip(float num, const float min, const float max);
 
@@ -75,37 +74,45 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 	*/
 	vision.ParseFromArray(pszRecv, 4096);
 	if (MyRobotBlue) {
-		for (int i = 0; i < vision.robots_blue_size; i++) {
+		for (int i = 0; i < vision.robots_blue_size(); i++) {
 			auto car = vision.robots_blue(i);
-			if (car.robot_id == MyRobotID) {
+			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
 			}
 			else {
 				obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 			}
 		}
-		for (int i = 0; i < vision.robots_yellow_size; i++) {
+		for (int i = 0; i < vision.robots_yellow_size(); i++) {
 			auto car = vision.robots_blue(i);
 			obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
 	}
 	else {
-		for (int i = 0; i < vision.robots_yellow_size; i++) {
+		for (int i = 0; i < vision.robots_yellow_size(); i++) {
 			auto car = vision.robots_yellow(i);
-			if (car.robot_id == MyRobotID) {
+			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
 			}
 			else {
 				obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 			}
 		}
-		for (int i = 0; i < vision.robots_blue_size; i++) {
+		for (int i = 0; i < vision.robots_blue_size(); i++) {
 			auto car = vision.robots_yellow(i);
 			obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
 	}
 }
-
+void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& errtpath) {
+	Coord start = errtpath[0];
+	Coord goal = errtpath[1];
+	double dist = start.dist(goal);
+	double gamma = 1;
+	vtang = (start.getX() - goal.getX()) / dist * gamma;
+	vnorm = (start.getY() - goal.getY()) / dist * gamma;
+	vangl = 0;
+}
 int main(void)
 {
 
@@ -136,9 +143,11 @@ int main(void)
 
 
 	int loop = 0;
+	CoordVector PastSuccess;
 	while (true) {
 		Robot myRobot;
 		RobotVector obsRobot;
+		Coord goal(200,300);
 		int dwSendSize = 0; 
 		int nRet = 0; // 接收的数据长度
 		dwSendSize = sizeof(si_remote); //本地接收变量的大小
@@ -155,7 +164,7 @@ int main(void)
 		}
 		else {
 			// 处理输入数据
-			HandleRecvData(vision,pszRecv, obsRobot, myRobot);
+			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
 			/*auto ball = vision.balls();
 			ball_x = ball.x();
 			ball_y = ball.y();
@@ -178,6 +187,17 @@ int main(void)
 				}
 			}*/
 		}
+		// ERRT PLANNING
+		ERRTPlanner errt_planner = ERRTPlanner(myRobot, goal, obsRobot, PastSuccess);
+		CoordVector errt_path;
+		if (errt_planner.findERRTPath(errt_path) == false) return 0;
+		double vtang, vnorm, vangl;
+		generateMotion(vtang, vnorm, vangl, errt_path);
+		/*
+		TODO: 讨论errt里findnearestP和generatenewP
+		1. 接口对应问题
+		2. 是否需要直接append
+		*/
 		// 根据输入产生输出
 		/*
 		TODO: ERRT PLANNING
@@ -207,26 +227,18 @@ int main(void)
 	return 0;
 
 }
+/*
 float clip(float num, const float min, const float max) {
-	if (num > max) num = max;
-	else if (num < min) num = min;
-	return num;
+if (num > max) num = max;
+else if (num < min) num = min;
+return num;
 }
 float angle_normalize(float angle) {
-	if (angle > pi)	angle -= 2 * pi;
-	else if (angle < -pi) angle += 2 * pi;
-	return angle;
+if (angle > pi)	angle -= 2 * pi;
+else if (angle < -pi) angle += 2 * pi;
+return angle;
 }
+*/
 
-void generateMotion(float &vx, float &w, float ball_x, float ball_y, float ball_vx, float ball_vy, float car_x, float car_y, float car_vx, float car_vy, float car_ort, float car_w) {
-	float robot2ball_theta = atan2(ball_y - car_y, ball_x - car_x);
-	float del_theta = angle_normalize(robot2ball_theta - car_ort);
-	cout << "del_theta: " << del_theta << endl;
-	float vel;
-	if (abs(del_theta) < 5.0 / 180 * pi) vel = 2;
-	else if (abs(del_theta) < 10.0 / 180 * pi) vel = 1.0;
-	else if (abs(del_theta) < 30.0 / 180 * pi) vel = 0.5;
-	else vel = 0;
-	vx = clip(vel, -3, 3);
-	w = clip(del_theta, -2, 2);
-}
+
+

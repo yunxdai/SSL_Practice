@@ -19,6 +19,8 @@ public:
 		return *this;
 	}
 	double dist(Coord ele) { return sqrt((_x - ele.x())*(_x - ele.x()) + (_y - ele.y())*(_y - ele.y())); }
+	double getX(void) { return _x; }
+	double getY(void) { return _y; }
 	void setX(double x) { _x = x; }
 	void setY(double y) { _y = y; }
 private:
