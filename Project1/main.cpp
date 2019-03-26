@@ -9,7 +9,7 @@
 
 #define pi 3.1415926
 # define MyRobotBlue true
-# define MyRobotID 5
+# define MyRobotID 0
 using namespace std;
 #pragma comment(lib, "libprotobuf.lib")
 #pragma comment(lib, "ws2_32.lib")
@@ -80,37 +80,37 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 	if (MyRobotBlue) {
 		for (int i = 0; i < vision.robots_blue_size(); i++) {
 			auto car = vision.robots_blue(i);
-			cout << "blue " << car.robot_id() << ": " << car.x() << ' ' << car.y() << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
+			cout << "blue " << car.robot_id() << ": " << car.x() / 10.0 << ' ' << -car.y() / 10.0 << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			if (car.robot_id() == MyRobotID) {
-				myRobot.setRobotParam(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
+				myRobot.setRobotParam(car.x() / 10.0, -car.y() / 10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
 				cout << "now is my robot in blue: " << car.robot_id() << endl;
 			}
 			else {
-				obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
+				obstacle.push_back(Robot(car.x() / 10.0, -car.y() / 10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 			}
 		}
 		for (int i = 0; i < vision.robots_yellow_size(); i++) {
-			auto car = vision.robots_blue(i);
-			cout << "yellow " << car.robot_id() << ": " << car.x() << ' ' << car.y() << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
-			obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
+			auto car = vision.robots_yellow(i);
+			cout << "yellow " << car.robot_id() << ": " << car.x() / 10.0<< ' ' << -car.y() / 10.0<< ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
+			obstacle.push_back(Robot(car.x()/10.0, -car.y()/10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
 	}
 	else {
 		for (int i = 0; i < vision.robots_yellow_size(); i++) {
 			auto car = vision.robots_yellow(i);
-			cout << "yellow " << car.robot_id() << ": " << car.x() << ' ' << car.y() << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
+			cout << "yellow " << car.robot_id() << ": " << car.x() / 10.0<< ' ' << -car.y() / 10.0<< ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			if (car.robot_id() == MyRobotID) {
-				myRobot.setRobotParam(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
+				myRobot.setRobotParam(car.x()/10.0, -car.y()/10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
 				cout << "now is my robot in yellow: " << car.robot_id() << endl;
 			}
 			else {
-				obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
+				obstacle.push_back(Robot(car.x()/10.0, -car.y()/10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 			}
 		}
 		for (int i = 0; i < vision.robots_blue_size(); i++) {
-			auto car = vision.robots_yellow(i);
-			cout << "blue " << car.robot_id() << ": " << car.x() << ' ' << car.y() << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
-			obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
+			auto car = vision.robots_blue(i);
+			cout << "blue " << car.robot_id() << ": " << car.x()/10.0 << ' ' << -car.y()/10.0 << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
+			obstacle.push_back(Robot(car.x()/10.0, -car.y()/10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
 	}
 }
@@ -157,7 +157,7 @@ int main(void)
 	while (true) {
 		Robot myRobot;
 		RobotVector obsRobot;
-		Coord goal(200,300);
+		Coord goal(-102,-302);
 		int dwSendSize = 0; 
 		int nRet = 0; // 接收的数据长度
 		dwSendSize = sizeof(si_remote); //本地接收变量的大小
@@ -201,6 +201,13 @@ int main(void)
 		ERRTPlanner errt_planner = ERRTPlanner(myRobot, goal, obsRobot, PastSuccess);
 		CoordVector errt_path;
 		if (errt_planner.findERRTPath(errt_path) == false) return 0;
+		if (PastSuccess.empty())
+			PastSuccess = errt_path;
+		else {
+			PastSuccess.clear();
+			PastSuccess.shrink_to_fit();
+			PastSuccess = errt_path;
+		}
 		double vtang, vnorm, vangl;
 		generateMotion(vtang, vnorm, vangl, errt_path);
 		/*

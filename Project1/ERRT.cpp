@@ -1,20 +1,22 @@
 #include "ERRT.h"
+#include <iostream>
 #include <ctime>
 #define WIDTH 450
 #define LENGTH 600
-#define STEP 10
+#define STEP 30
 #define PGOAL 0.2
 #define PWAYPOINT 0.3
-
+#define N 999
 bool ERRTPlanner::generateRandP(Coord& randP) {
 	double p;
 	srand((unsigned)time(NULL));
-	p = rand() / double(RAND_MAX);		//产生0-1之间的随机数
+	p = rand() % (N + 1) / (float)(N + 1);
+	// p = rand() / double(RAND_MAX);		//产生0-1之间的随机数
 	if (p < PGOAL) {
 		randP = _end;
 		return true;
 	}
-	else if (p < PGOAL + PWAYPOINT) {
+	else if (p < PGOAL + PWAYPOINT && !_waypoint.empty() ) {
 		int len, index;
 		len = _waypoint.size();
 		index = rand() % len;
@@ -22,7 +24,7 @@ bool ERRTPlanner::generateRandP(Coord& randP) {
 		return true;
 	}
 	else {
-		randP = Coord(rand() % LENGTH, rand() % WIDTH);
+		randP = Coord(rand() % (2 * LENGTH) - LENGTH, rand() % (2 * WIDTH) - WIDTH);
 		return true;
 	}
 	return false;
@@ -61,7 +63,16 @@ bool ERRTPlanner::checkCollision(Coord& nearestP, Coord& newP) {
 	Robot newRobot = Robot(newP, 0, 0, 0);
 	len = _obsVec.size();
 	for (i = 0; i < len; i++) {
-		if (_obsVec[i].isCollision(newRobot) || _obsVec[i].isCollision(nearestP, newP))	return true;
+		if (_obsVec[i].isCollision(newRobot) || _obsVec[i].isCollision(nearestP, newP))
+		{
+			if (_obsVec[i].isCollision(newRobot)) {
+				std::cout << "collision with obstacle with obstacle" << i << std::endl;
+			}
+			else if (_obsVec[i].isCollision(nearestP, newP)) {
+				std::cout << "collision between nearestP and newP with obstacle " << i << std::endl;
+			}
+			return true;
+		}
 	}
 	return false;
 }
@@ -111,12 +122,14 @@ bool ERRTPlanner::findERRTPath(CoordVector& trajVec) {
 	int nodeNum = 1;
 	Coord randP, nearestP, newP;
 	int parentID;
+	int count = 0;
 	while (!goalSuccessFlag && nodeNum < 1000) {
 		if (!generateRandP(randP))	continue;	//产生随机点，成功则返回真
 		if(!findNearestP(parentID, randP))	continue;	//找到最近邻点的ID，成功则返回真
 		nearestP = _errt.nodes[parentID].pos;	//最近邻点的坐标
 		if (!generateNewP(nearestP, randP, newP))	continue;	//产生新点坐标，成功则返回真
 		if (checkCollision(nearestP, newP))	continue;	//检测新点坐标有无碰，有碰返回真
+		std::cout << count++ << std::endl;
 		if (checkNewP2Goal(newP)) {				//判断新点是否到达目标点，到达返回真
 			_errt.addNewTNode(ERRTNode(_end, nodeNum, parentID));
 			goalSuccessFlag = true;
