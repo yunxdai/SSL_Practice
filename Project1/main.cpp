@@ -28,6 +28,7 @@ bool Socket_Init(void)
 		cout << "WSAStartup Error = " << WSAGetLastError() << endl;
 		return false;
 	}
+	return true;
 }
 bool SocketRecvInit(SOCKET &soRecv, SOCKADDR_IN &si_local, SOCKADDR_IN &si_remote, char* &pszRecv, const char* &ADDR, const int RecvPort)
 
@@ -52,6 +53,7 @@ bool SocketRecvInit(SOCKET &soRecv, SOCKADDR_IN &si_local, SOCKADDR_IN &si_remot
 		cout << "pszRecv new char Error " << endl;
 		return false;
 	}
+	return true;
 
 }
 bool SocketSendInit(SOCKET &soSend, SOCKADDR_IN &si_local, const char* &ADDR, const int SendPort)
@@ -64,6 +66,7 @@ bool SocketSendInit(SOCKET &soSend, SOCKADDR_IN &si_local, const char* &ADDR, co
 	si_local.sin_family = AF_INET;
 	si_local.sin_port = htons(SendPort);
 	si_local.sin_addr.s_addr = inet_addr(ADDR);
+	return true;
 
 }
 void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &obstacle, Robot &myRobot) {
@@ -72,12 +75,14 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 	function: 处理读入的数据流
 	Output: 障碍机器人信息，被控机器人信息
 	*/
-	vision.ParseFromArray(pszRecv, 4096);
+	vision.ParseFromArray(pszRecv, 6144);
 	if (MyRobotBlue) {
 		for (int i = 0; i < vision.robots_blue_size(); i++) {
 			auto car = vision.robots_blue(i);
+			cout << "blue " << car.robot_id() << ": " << car.x() << ' ' << car.y() << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
+				cout << "now is my robot in blue: " << car.robot_id() << endl;
 			}
 			else {
 				obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
@@ -85,14 +90,17 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 		}
 		for (int i = 0; i < vision.robots_yellow_size(); i++) {
 			auto car = vision.robots_blue(i);
+			cout << "yellow " << car.robot_id() << ": " << car.x() << ' ' << car.y() << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
 	}
 	else {
 		for (int i = 0; i < vision.robots_yellow_size(); i++) {
 			auto car = vision.robots_yellow(i);
+			cout << "yellow " << car.robot_id() << ": " << car.x() << ' ' << car.y() << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
+				cout << "now is my robot in yellow: " << car.robot_id() << endl;
 			}
 			else {
 				obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
@@ -100,6 +108,7 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 		}
 		for (int i = 0; i < vision.robots_blue_size(); i++) {
 			auto car = vision.robots_yellow(i);
+			cout << "blue " << car.robot_id() << ": " << car.x() << ' ' << car.y() << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			obstacle.push_back(Robot(car.x(), car.y(), car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
 	}
@@ -126,7 +135,7 @@ int main(void)
 	const int RecvPort = 23333;
 	const char* RecvADDR = "127.0.0.1";
 	SOCKADDR_IN si_remote;
-	char *pszRecv = new char[4096];
+	char *pszRecv = new char[6144];
 	if (SocketRecvInit(soRecv, si_local, si_remote, pszRecv, RecvADDR, RecvPort) == false) return 1;
 	
 	// 发送部分
