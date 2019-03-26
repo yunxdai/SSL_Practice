@@ -75,6 +75,7 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 	function: 处理读入的数据流
 	Output: 障碍机器人信息，被控机器人信息
 	*/
+	// 坐标问题：读进来的坐标是grSim上显示坐标值的十倍
 	vision.ParseFromArray(pszRecv, 6144);
 	if (MyRobotBlue) {
 		for (int i = 0; i < vision.robots_blue_size(); i++) {
