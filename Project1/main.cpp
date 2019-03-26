@@ -1,6 +1,7 @@
 #include <iostream>
 #include <WinSock2.h>
 #include <math.h>
+#include<windows.h>
 #include "vision_detection.pb.h"
 #include "grSim_Packet.pb.h"
 #include "Motion_Info.h"
@@ -118,9 +119,12 @@ void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& er
 	Coord start = errtpath[0];
 	Coord goal = errtpath[1];
 	double dist = start.dist(goal);
-	double gamma = 1;
-	vtang = (start.getX() - goal.getX()) / dist * gamma;
-	vnorm = (start.getY() - goal.getY()) / dist * gamma;
+	double gamma = 2;
+	vtang = (goal.getX() - start.getX()) / dist * gamma;
+	vnorm = (goal.getY() - start.getY()) / dist * gamma;
+	cout << "tang_vel: " << vtang << " --- norm_vel: " << vnorm << endl;
+	// vtang = 1;
+	// vnorm = 1;
 	vangl = 0;
 }
 int main(void)
@@ -157,10 +161,11 @@ int main(void)
 	while (true) {
 		Robot myRobot;
 		RobotVector obsRobot;
-		Coord goal(-102,-302);
-		int dwSendSize = 0; 
+		Coord goal(0,0);
+		int dwSendSize = 0;
 		int nRet = 0; // 接收的数据长度
 		dwSendSize = sizeof(si_remote); //本地接收变量的大小
+
 		nRet = recvfrom(soRecv, pszRecv, 4096, 0, (SOCKADDR*)&si_remote, &dwSendSize);
 		/*float ball_x, ball_y, ball_vx, ball_vy;
 		float car_x, car_y, car_vx, car_vy, car_ort, car_w;*/
@@ -225,15 +230,38 @@ int main(void)
 		generate velocity that drive robot towards that goal (function should return vtang, vnorm and vangl)
 		*/
 		
-		Motion_Info robot(MyRobotID, vtang, vnorm, vangl, !MyRobotBlue);
-		int CommandSize = robot.Get_Size();
-		char* CommandArray = robot.Get_pszRecv();
-
+		Motion_Info robot2(MyRobotID, vtang, vnorm, vangl, !MyRobotBlue);
+		int CommandSize = robot2.Get_Size();
+		char* CommandArray = robot2.Get_pszRecv();
 		nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
-		if (nRet == SOCKET_ERROR) {
-			cout << "sendto Error " << WSAGetLastError() << endl;
-			break;
+		Sleep(300);
+		Motion_Info robot1(MyRobotID, 0, 0, 0, !MyRobotBlue);
+		CommandSize = robot1.Get_Size();
+		CommandArray = robot1.Get_pszRecv();
+		nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+		/*
+		while (true) {
+			nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+			if (nRet == SOCKET_ERROR) {
+				cout << "sendto Error " << WSAGetLastError() << endl;
+				break;
+			}
+			nRet = recvfrom(soRecv, pszRecv, 4096, 0, (SOCKADDR*)&si_remote, &dwSendSize);
+			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
+			if (goal.dist(myRobot.pos()) < ROBOTSIZE) {
+				Motion_Info robot1(MyRobotID, 0, 0, 0, !MyRobotBlue);
+				CommandSize = robot1.Get_Size();
+				CommandArray = robot1.Get_pszRecv();
+
+				nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+				if (nRet == SOCKET_ERROR) {
+					cout << "sendto Error " << WSAGetLastError() << endl;
+					break;
+				}
+				break;
+			}
 		}
+		*/
 		loop++;
 	}
 	closesocket(soRecv);
