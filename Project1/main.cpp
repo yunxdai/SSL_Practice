@@ -1,8 +1,10 @@
 #include <iostream>
+#include <thread>
 #include <WinSock2.h>
 #include <math.h>
 #include<windows.h>
 #include "vision_detection.pb.h"
+#include "zss_debug.pb.h"
 #include "grSim_Packet.pb.h"
 #include "Motion_Info.h"
 #include "model.h"
@@ -14,9 +16,6 @@
 using namespace std;
 #pragma comment(lib, "libprotobuf.lib")
 #pragma comment(lib, "ws2_32.lib")
-
-float angle_normalize(float angle);
-float clip(float num, const float min, const float max);
 
 
 
@@ -45,7 +44,7 @@ bool SocketRecvInit(SOCKET &soRecv, SOCKADDR_IN &si_local, SOCKADDR_IN &si_remot
 	si_local.sin_family = AF_INET;
 	si_local.sin_port = htons(RecvPort);
 	si_local.sin_addr.s_addr = inet_addr(ADDR);
-	if (bind(soRecv, (SOCKADDR*)&si_local, sizeof(si_local)) == SOCKET_ERROR) {
+	if (::bind(soRecv, (SOCKADDR*)&si_local, sizeof(si_local)) == SOCKET_ERROR) {
 		cout << "bind error = " << WSAGetLastError() << endl;
 		return false;
 	}
@@ -64,6 +63,7 @@ bool SocketSendInit(SOCKET &soSend, SOCKADDR_IN &si_local, const char* &ADDR, co
 		cout << "socket Error = " << WSAGetLastError() << endl;
 		return false;
 	}
+	
 	si_local.sin_family = AF_INET;
 	si_local.sin_port = htons(SendPort);
 	si_local.sin_addr.s_addr = inet_addr(ADDR);
@@ -77,14 +77,14 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 	Output: 障碍机器人信息，被控机器人信息
 	*/
 	// 坐标问题：读进来的坐标是grSim上显示坐标值的十倍
-	vision.ParseFromArray(pszRecv, 6144);
+	vision.ParseFromArray(pszRecv, 4096);
 	if (MyRobotBlue) {
 		for (int i = 0; i < vision.robots_blue_size(); i++) {
 			auto car = vision.robots_blue(i);
-			cout << "blue " << car.robot_id() << ": " << car.x() / 10.0 << ' ' << -car.y() / 10.0 << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
+			// cout << "blue " << car.robot_id() << ": " << car.x() / 10.0 << ' ' << -car.y() / 10.0 << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x() / 10.0, -car.y() / 10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
-				cout << "now is my robot in blue: " << car.robot_id() << endl;
+				cout << "my robot in blue: " << endl << "robot_x = " << car.x() << " robot_y = " << car.y()  << endl;
 			}
 			else {
 				obstacle.push_back(Robot(car.x() / 10.0, -car.y() / 10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
@@ -92,17 +92,18 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 		}
 		for (int i = 0; i < vision.robots_yellow_size(); i++) {
 			auto car = vision.robots_yellow(i);
-			cout << "yellow " << car.robot_id() << ": " << car.x() / 10.0<< ' ' << -car.y() / 10.0<< ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
+			// cout << "yellow " << car.robot_id() << ": " << car.x() / 10.0<< ' ' << -car.y() / 10.0<< ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			obstacle.push_back(Robot(car.x()/10.0, -car.y()/10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
 	}
 	else {
 		for (int i = 0; i < vision.robots_yellow_size(); i++) {
 			auto car = vision.robots_yellow(i);
-			cout << "yellow " << car.robot_id() << ": " << car.x() / 10.0<< ' ' << -car.y() / 10.0<< ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
+			// cout << "yellow " << car.robot_id() << ": " << car.x() / 10.0<< ' ' << -car.y() / 10.0<< ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x()/10.0, -car.y()/10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
-				cout << "now is my robot in yellow: " << car.robot_id() << endl;
+				cout << "my robot in yellow: " << endl << "robot_x = " << car.x() << " robot_y = " << car.y() << endl;
+				// cout << "now is my robot in yellow: " << car.robot_id() << endl;
 			}
 			else {
 				obstacle.push_back(Robot(car.x()/10.0, -car.y()/10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
@@ -110,22 +111,43 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 		}
 		for (int i = 0; i < vision.robots_blue_size(); i++) {
 			auto car = vision.robots_blue(i);
-			cout << "blue " << car.robot_id() << ": " << car.x()/10.0 << ' ' << -car.y()/10.0 << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
+			// cout << "blue " << car.robot_id() << ": " << car.x()/10.0 << ' ' << -car.y()/10.0 << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			obstacle.push_back(Robot(car.x()/10.0, -car.y()/10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
 		}
 	}
 }
-void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& errtpath) {
+void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& errtpath, const Robot& myRobot, double &t) {
 	Coord start = errtpath[0];
-	Coord goal = errtpath[1];
+	cout << "start_x = " << start.getX() << " ---- start_y = " << start.getY() << endl;
+	Coord goal(0, 0);
+	cout << "goal_x = " << goal.getX() << " ---- goal_y = " << goal.getY() << endl;
+	// Coord goal = errtpath[1];
+	double dir = myRobot.orientation();
+	cout << "robot orientation = " << dir << endl;
 	double dist = start.dist(goal);
+	double towards = atan2(goal.getX() - start.getX(), goal.getY() - start.getY());
+	cout << "towards = "<< towards << endl;
 	double gamma = 2;
-	vtang = (goal.getX() - start.getX()) / dist * gamma;
-	vnorm = (goal.getY() - start.getY()) / dist * gamma;
-	cout << "tang_vel: " << vtang << " --- norm_vel: " << vnorm << endl;
-	// vtang = 1;
-	// vnorm = 1;
+	double vx = (goal.getX() - start.getX()) / dist * gamma;
+	double vy = -(goal.getY() - start.getY()) / dist * gamma;
+	vx = 0;
+	vy = 1;
+	t = dist / sqrt(vx * vx + vy * vy);
+	vtang = vx * cos(dir) + vy * sin(dir);
+	vnorm = vx * sin(dir) - vy * cos(dir);
+	cout << "tang_vel: " << vtang << " ---- norm_vel: " << vnorm << endl << endl;
+	vangl = (towards - dir) / t;
 	vangl = 0;
+}
+
+bool recvFlag = false;
+void recvFunc(SOCKET recvSocket, sockaddr_in remoteAddr) {
+	char* bufRecv = new char[4096];
+	int bufSize = 4096;
+	int remoteAddrLen = sizeof(remoteAddr);
+	int nRet;
+	while (true)
+		if (recvFlag)	nRet = recvfrom(recvSocket, bufRecv, bufSize, 0, (SOCKADDR*)&remoteAddr, &remoteAddrLen);
 }
 int main(void)
 {
@@ -140,7 +162,7 @@ int main(void)
 	const int RecvPort = 23333;
 	const char* RecvADDR = "127.0.0.1";
 	SOCKADDR_IN si_remote;
-	char *pszRecv = new char[6144];
+	char *pszRecv = new char[4096];
 	if (SocketRecvInit(soRecv, si_local, si_remote, pszRecv, RecvADDR, RecvPort) == false) return 1;
 	
 	// 发送部分
@@ -151,22 +173,28 @@ int main(void)
 	//设置端口号
 	
 
-	// vision类
-	static Vision_DetectionFrame vision;
+	
 
 
-
+	Vision_DetectionFrame vision;
 	int loop = 0;
 	CoordVector PastSuccess;
+	thread recvThread(recvFunc, soRecv, si_remote);
+	recvThread.detach();
 	while (true) {
+		// vision类
+		
 		Robot myRobot;
 		RobotVector obsRobot;
 		Coord goal(0,0);
-		int dwSendSize = 0;
+		recvFlag = false;
+		Sleep(10);
 		int nRet = 0; // 接收的数据长度
+		
+		int dwSendSize = 0;
 		dwSendSize = sizeof(si_remote); //本地接收变量的大小
-
 		nRet = recvfrom(soRecv, pszRecv, 4096, 0, (SOCKADDR*)&si_remote, &dwSendSize);
+		recvFlag = true;
 		/*float ball_x, ball_y, ball_vx, ball_vy;
 		float car_x, car_y, car_vx, car_vy, car_ort, car_w;*/
 
@@ -179,7 +207,10 @@ int main(void)
 		}
 		else {
 			// 处理输入数据
+			pszRecv[nRet] = '\0';
+
 			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
+			
 			/*auto ball = vision.balls();
 			ball_x = ball.x();
 			ball_y = ball.y();
@@ -201,7 +232,9 @@ int main(void)
 					cout << "id: " << blue.robot_id() << " x: " << blue.x() << " y: " << blue.y() << endl;
 				}
 			}*/
-		}
+		} 
+		
+		
 		// ERRT PLANNING
 		ERRTPlanner errt_planner = ERRTPlanner(myRobot, goal, obsRobot, PastSuccess);
 		CoordVector errt_path;
@@ -213,33 +246,60 @@ int main(void)
 			PastSuccess.shrink_to_fit();
 			PastSuccess = errt_path;
 		}
-		double vtang, vnorm, vangl;
-		generateMotion(vtang, vnorm, vangl, errt_path);
-		/*
-		TODO: 讨论errt里findnearestP和generatenewP
-		1. 接口对应问题
-		2. 是否需要直接append
-		*/
-		// 根据输入产生输出
-		/*
-		TODO: ERRT PLANNING
-		*/
-		/*
-		TODO: generate vx,vy,w based on ERRT PLANING result
-		set the next point of ERRT as goal point, 
-		generate velocity that drive robot towards that goal (function should return vtang, vnorm and vangl)
-		*/
+		ZSS::Protocol::Debug_Msgs msgs;
+		
+		auto *msg = msgs.add_msgs();
+		msg->set_type(ZSS::Protocol::Debug_Msg_Debug_Type_LINE);
+		msg->set_color(ZSS::Protocol::Debug_Msg_Color_RED);
+		ZSS::Protocol::Debug_Line* line = new ZSS::Protocol::Debug_Line;
+		ZSS::Protocol::Point* start = new ZSS::Protocol::Point;
+		ZSS::Protocol::Point* end = new ZSS::Protocol::Point;
+		start->set_x(1);
+		start->set_y(1);
+		end->set_x(100);
+		end->set_y(100);
+		line->set_allocated_start(start);
+		line->set_allocated_end(end);
+		line->set_forward(TRUE);
+		line->set_back(TRUE);
+		msg->set_allocated_line(line);
+		
+		int MSGsize = msgs.ByteSize();
+		char* MSGRecv = new char[MSGsize];
+		// msg.SerializePartialToArray(pszRecv, size);
+		msgs.SerializePartialToArray(MSGRecv, MSGsize);
+		nRet = sendto(soSend, MSGRecv, MSGsize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+
+
+
+
+
+
+
+
+
+
+
+
+		double vtang, vnorm, vangl, tPeriod;
+		generateMotion(vtang, vnorm, vangl, errt_path, myRobot, tPeriod);
+		cout << "time needed = " << tPeriod << endl;
 		
 		Motion_Info robot2(MyRobotID, vtang, vnorm, vangl, !MyRobotBlue);
 		int CommandSize = robot2.Get_Size();
 		char* CommandArray = robot2.Get_pszRecv();
 		nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
-		Sleep(300);
+		Sleep(tPeriod);
+		// Sleep(tPeriod * 100);
+		
 		Motion_Info robot1(MyRobotID, 0, 0, 0, !MyRobotBlue);
 		CommandSize = robot1.Get_Size();
 		CommandArray = robot1.Get_pszRecv();
 		nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+		
 		/*
+		
+		
 		while (true) {
 			nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
 			if (nRet == SOCKET_ERROR) {
@@ -268,7 +328,7 @@ int main(void)
 	delete[] pszRecv;
 	closesocket(soSend);
 	WSACleanup();
-	system("pause");
+	::system("pause");
 	return 0;
 
 }
@@ -284,6 +344,3 @@ else if (angle < -pi) angle += 2 * pi;
 return angle;
 }
 */
-
-
-

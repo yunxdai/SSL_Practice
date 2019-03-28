@@ -26,6 +26,7 @@
     <ClInclude Include="model.h" />
     <ClInclude Include="Motion_Info.h" />
     <ClInclude Include="vision_detection.pb.h" />
+    <ClInclude Include="zss_debug.pb.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ERRT.cpp" />
@@ -35,6 +36,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Motion_Info.cpp" />
     <ClCompile Include="vision_detection.pb.cc" />
+    <ClCompile Include="zss_debug.pb.cc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
