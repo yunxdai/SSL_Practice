@@ -246,8 +246,10 @@ int main(void)
 			PastSuccess.shrink_to_fit();
 			PastSuccess = errt_path;
 		}
+
+
+		/*
 		ZSS::Protocol::Debug_Msgs msgs;
-		
 		auto *msg = msgs.add_msgs();
 		msg->set_type(ZSS::Protocol::Debug_Msg_Debug_Type_LINE);
 		msg->set_color(ZSS::Protocol::Debug_Msg_Color_RED);
@@ -270,25 +272,53 @@ int main(void)
 		msgs.SerializePartialToArray(MSGRecv, MSGsize);
 		nRet = sendto(soSend, MSGRecv, MSGsize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
 
+		*/
+		
 
-
-
-
-
-
-
-
-
+		
 
 
 		double vtang, vnorm, vangl, tPeriod;
 		generateMotion(vtang, vnorm, vangl, errt_path, myRobot, tPeriod);
 		cout << "time needed = " << tPeriod << endl;
 		
-		Motion_Info robot2(MyRobotID, vtang, vnorm, vangl, !MyRobotBlue);
+
+		grSim_Packet packet;
+		auto* command = packet.mutable_commands();
+		command->set_timestamp(0);
+		command->set_isteamyellow(false);
+		auto* robot_command1 = command->add_robot_commands();
+		robot_command1->set_id(MyRobotID);
+		robot_command1->set_kickspeedx(0);
+		robot_command1->set_kickspeedz(0);
+		robot_command1->set_veltangent(vtang);
+		robot_command1->set_velnormal(vnorm);
+		robot_command1->set_velangular(vangl);
+		robot_command1->set_spinner(0);
+		robot_command1->set_wheelsspeed(false);
+
+		auto robot_command2 = command->add_robot_commands();
+		robot_command1->set_id(MyRobotID);
+		robot_command1->set_kickspeedx(0);
+		robot_command1->set_kickspeedz(0);
+		robot_command1->set_veltangent(vtang);
+		robot_command1->set_velnormal(vnorm);
+		robot_command1->set_velangular(vangl);
+		robot_command1->set_spinner(0);
+		robot_command1->set_wheelsspeed(false);
+
+
+
+		int CommandSize = packet.ByteSize();
+		char* CommandArray = new char[CommandSize];
+		packet.SerializePartialToArray(pszRecv, CommandSize);
+
+		/*
+		1Motion_Info robot2(MyRobotID, vtang, vnorm, vangl, !MyRobotBlue);
 		int CommandSize = robot2.Get_Size();
 		char* CommandArray = robot2.Get_pszRecv();
 		nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+		*/
 		Sleep(tPeriod);
 		// Sleep(tPeriod * 100);
 		
