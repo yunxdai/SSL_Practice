@@ -2,7 +2,7 @@
 #ifndef MODEL_H
 #define MODEL_H
 #include <cmath>
-#define ROBOTSIZE 20
+#define ROBOTSIZE 30
 class Coord			//×ø±êÀà
 {
 public:

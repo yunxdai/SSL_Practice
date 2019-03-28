@@ -149,12 +149,12 @@ bool ERRTPlanner::findERRTPath(CoordVector& trajVec) {
 		trajVec.shrink_to_fit();
 		// trajVec.swap(CoordVector());
 		findPath(path);
-		smoothPath(path, sPath);
-		len = sPath.size();
-		//len = path.size();
+		// smoothPath(path, sPath);
+		// len = sPath.size();
+		len = path.size();
 		for (i = len - 1; i >= 0; i--)
-			trajVec.push_back(sPath[i]);
-			//trajVec.push_back(path[i].pos);
+			// trajVec.push_back(sPath[i]);
+			trajVec.push_back(path[i].pos);
 		return true;
 	}
 	else
