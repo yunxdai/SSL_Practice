@@ -7,7 +7,7 @@
 #define LENGTH 1200
 #define ORIGINAL_X -600
 #define ORIGINAL_Y -450
-#define STEP 10
+#define STEP 20
 #define PGOAL 0.2
 #define PWAYPOINT 0.3
 
@@ -151,8 +151,10 @@ bool ERRTPlanner::findERRTPath(CoordVector& trajVec) {
 		findPath(path);
 		smoothPath(path, sPath);
 		len = sPath.size();
+		//len = path.size();
 		for (i = len - 1; i >= 0; i--)
 			trajVec.push_back(sPath[i]);
+			//trajVec.push_back(path[i].pos);
 		return true;
 	}
 	else

@@ -116,8 +116,16 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 		}
 	}
 }
-void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& errtpath, const Robot& myRobot, double &t) {
-	Coord start = errtpath[0];
+const double dt = 100;
+void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& errtpath, const Robot& myRobot, bool flag) {
+	Coord start;
+	if (flag == TRUE) {
+		start = errtpath[0];
+	}
+	else {
+		start = myRobot.pos();
+	}
+
 	cout << "start_x = " << start.getX() << " ---- start_y = " << start.getY() << endl;
 	Coord goal(0, 0);
 	cout << "goal_x = " << goal.getX() << " ---- goal_y = " << goal.getY() << endl;
@@ -127,18 +135,21 @@ void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& er
 	double dist = start.dist(goal);
 	double towards = atan2(goal.getX() - start.getX(), goal.getY() - start.getY());
 	cout << "towards = "<< towards << endl;
-	double gamma = 2;
-	double vx = (goal.getX() - start.getX()) / dist * gamma;
-	double vy = -(goal.getY() - start.getY()) / dist * gamma;
-	vx = 0;
-	vy = 1;
-	t = dist / sqrt(vx * vx + vy * vy);
-	vtang = vx * cos(dir) + vy * sin(dir);
-	vnorm = vx * sin(dir) - vy * cos(dir);
-	cout << "tang_vel: " << vtang << " ---- norm_vel: " << vnorm << endl << endl;
-	vangl = (towards - dir) / t;
-	vangl = 0;
+	vangl =  - 400 * (towards - dir) / dt;
+	double global_x = goal.getX(), global_y = goal.getY();
+	double robot_x = global_x * cos(dir) + global_y * sin(dir);
+	double robot_y = global_x * sin(dir) - global_y * cos(dir);
+	vtang = dist / dt;
+	vnorm = 0;
+	//vtang = ((robot_x - start.getX()) / dt);
+	// vnorm = -((robot_y - start.getY()) / dt);
+	// double gamma = 2;
+	// double vx = (goal.getX() - start.getX()) / dist * gamma;
+	// double vy = -(goal.getY() - start.getY()) / dist * gamma;
+	cout << "tang_vel: " << vtang << " ---- norm_vel: " << vnorm << "---angular_vel: " << vangl << endl;
 }
+
+
 
 bool recvFlag = false;
 void recvFunc(SOCKET recvSocket, sockaddr_in remoteAddr) {
@@ -172,8 +183,13 @@ int main(void)
 	if (SocketSendInit(soSend, si_local, SendADDR, SendPort) == false) return 1;
 	//设置端口号
 	
-
-	
+	// 画图部分
+	/*const int DebugPort = 20001;
+	SOCKET soDebug;
+	const char* DebugADDR = RecvADDR;
+	if (SocketSendInit(soDebug, si_local, DebugADDR, DebugPort) == false) return 1;
+*/
+	//
 
 
 	Vision_DetectionFrame vision;
@@ -210,35 +226,13 @@ int main(void)
 			pszRecv[nRet] = '\0';
 
 			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
-			
-			/*auto ball = vision.balls();
-			ball_x = ball.x();
-			ball_y = ball.y();
-			ball_vx = ball.vel_x();
-			ball_vy = ball.vel_x();
-
-			int blue_size = vision.robots_blue_size();
-			for (int j = 0; j < blue_size; j++) {
-				auto blue = vision.robots_blue(j);
-				if (blue.robot_id() == 2) {
-
-					car_x = blue.x();
-					car_y = blue.y();
-					car_vx = blue.vel_x();
-					car_vy = blue.vel_y();
-					car_ort = blue.orientation();
-					car_w = blue.rotate_vel();
-
-					cout << "id: " << blue.robot_id() << " x: " << blue.x() << " y: " << blue.y() << endl;
-				}
-			}*/
 		} 
 		
 		
 		// ERRT PLANNING
 		ERRTPlanner errt_planner = ERRTPlanner(myRobot, goal, obsRobot, PastSuccess);
 		CoordVector errt_path;
-		if (errt_planner.findERRTPath(errt_path) == false) return 0;
+		if (errt_planner.findERRTPath(errt_path) == false) continue;
 		if (PastSuccess.empty())
 			PastSuccess = errt_path;
 		else {
@@ -250,108 +244,91 @@ int main(void)
 
 		/*
 		ZSS::Protocol::Debug_Msgs msgs;
-		auto *msg = msgs.add_msgs();
-		msg->set_type(ZSS::Protocol::Debug_Msg_Debug_Type_LINE);
-		msg->set_color(ZSS::Protocol::Debug_Msg_Color_RED);
-		ZSS::Protocol::Debug_Line* line = new ZSS::Protocol::Debug_Line;
-		ZSS::Protocol::Point* start = new ZSS::Protocol::Point;
-		ZSS::Protocol::Point* end = new ZSS::Protocol::Point;
-		start->set_x(1);
-		start->set_y(1);
-		end->set_x(100);
-		end->set_y(100);
-		line->set_allocated_start(start);
-		line->set_allocated_end(end);
-		line->set_forward(TRUE);
-		line->set_back(TRUE);
-		msg->set_allocated_line(line);
-		
+		for (int i = 0; i < errt_path.size() - 1; i++) {
+			auto node = errt_path[i];
+			auto next_node = errt_path[i + 1];
+			auto *msg = msgs.add_msgs();
+			msg->set_type(ZSS::Protocol::Debug_Msg_Debug_Type_LINE);
+			msg->set_color(ZSS::Protocol::Debug_Msg_Color_RED);
+			auto* line = msg->mutable_line();
+			auto* start = line->mutable_start();
+			auto* end = line->mutable_end();
+			start->set_x(node.getX());
+			start->set_y(node.getY());
+			end->set_x(next_node.getX());
+			end->set_y(next_node.getY());
+			line->set_forward(TRUE);
+			line->set_back(TRUE);
+			cout << "i = " << i << endl;
+		}
+
 		int MSGsize = msgs.ByteSize();
 		char* MSGRecv = new char[MSGsize];
-		// msg.SerializePartialToArray(pszRecv, size);
 		msgs.SerializePartialToArray(MSGRecv, MSGsize);
-		nRet = sendto(soSend, MSGRecv, MSGsize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
-
-		*/
+		nRet = sendto(soDebug, MSGRecv, MSGsize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));*/
+		Coord medGoal = errt_path[1];
+	
 		
 
 		
 
 
-		double vtang, vnorm, vangl, tPeriod;
-		generateMotion(vtang, vnorm, vangl, errt_path, myRobot, tPeriod);
-		cout << "time needed = " << tPeriod << endl;
+		// double vtang, vnorm, vangl, tPeriod;
+		// generateMotion(vtang, vnorm, vangl, errt_path, myRobot, true);
+		// cout << "time needed = " << tPeriod << endl;
 		
-
-		grSim_Packet packet;
-		auto* command = packet.mutable_commands();
-		command->set_timestamp(0);
-		command->set_isteamyellow(false);
-		auto* robot_command1 = command->add_robot_commands();
-		robot_command1->set_id(MyRobotID);
-		robot_command1->set_kickspeedx(0);
-		robot_command1->set_kickspeedz(0);
-		robot_command1->set_veltangent(vtang);
-		robot_command1->set_velnormal(vnorm);
-		robot_command1->set_velangular(vangl);
-		robot_command1->set_spinner(0);
-		robot_command1->set_wheelsspeed(false);
-
-		auto robot_command2 = command->add_robot_commands();
-		robot_command1->set_id(MyRobotID);
-		robot_command1->set_kickspeedx(0);
-		robot_command1->set_kickspeedz(0);
-		robot_command1->set_veltangent(vtang);
-		robot_command1->set_velnormal(vnorm);
-		robot_command1->set_velangular(vangl);
-		robot_command1->set_spinner(0);
-		robot_command1->set_wheelsspeed(false);
-
-
-
-		int CommandSize = packet.ByteSize();
-		char* CommandArray = new char[CommandSize];
-		packet.SerializePartialToArray(pszRecv, CommandSize);
-
-		/*
-		1Motion_Info robot2(MyRobotID, vtang, vnorm, vangl, !MyRobotBlue);
-		int CommandSize = robot2.Get_Size();
-		char* CommandArray = robot2.Get_pszRecv();
-		nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
-		*/
-		Sleep(tPeriod);
-		// Sleep(tPeriod * 100);
-		
-		Motion_Info robot1(MyRobotID, 0, 0, 0, !MyRobotBlue);
-		CommandSize = robot1.Get_Size();
-		CommandArray = robot1.Get_pszRecv();
-		nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
 		
 		/*
-		
-		
 		while (true) {
-			nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
-			if (nRet == SOCKET_ERROR) {
-				cout << "sendto Error " << WSAGetLastError() << endl;
-				break;
-			}
 			nRet = recvfrom(soRecv, pszRecv, 4096, 0, (SOCKADDR*)&si_remote, &dwSendSize);
 			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
-			if (goal.dist(myRobot.pos()) < ROBOTSIZE) {
-				Motion_Info robot1(MyRobotID, 0, 0, 0, !MyRobotBlue);
-				CommandSize = robot1.Get_Size();
-				CommandArray = robot1.Get_pszRecv();
-
+			double theta = myRobot.orientation();
+			double direction = atan2(goal.getY() - myRobot.pos().getY(), goal.getX() - myRobot.pos().getX());
+			if (fabs(theta - direction) < pi / 100) {
+				Motion_Info robot(MyRobotID, 1, 0, 0, !MyRobotBlue);
+				int CommandSize = robot.Get_Size();
+				char* CommandArray = robot.Get_pszRecv();
 				nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
-				if (nRet == SOCKET_ERROR) {
-					cout << "sendto Error " << WSAGetLastError() << endl;
-					break;
-				}
 				break;
+			}
+			else {
+				Motion_Info robot(MyRobotID, 0, 0, -1, !MyRobotBlue);
+				int CommandSize = robot.Get_Size();
+				char* CommandArray = robot.Get_pszRecv();
+				nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
 			}
 		}
 		*/
+		
+		while (true) {
+			nRet = recvfrom(soRecv, pszRecv, 4096, 0, (SOCKADDR*)&si_remote, &dwSendSize);
+			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
+			double theta = -myRobot.orientation();
+			cout << "theta = " << theta << endl;
+			double direction = atan2(medGoal.getY() - myRobot.pos().getY(), medGoal.getX() - myRobot.pos().getX());
+			if (medGoal.dist(myRobot.pos()) < ROBOTSIZE) {
+				Motion_Info robot(MyRobotID, 0, 0, 0, !MyRobotBlue);
+				int CommandSize = robot.Get_Size();
+				char* CommandArray = robot.Get_pszRecv();
+				nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+				break;
+			}
+			else {
+				if (fabs(theta - direction) > pi / 5) {
+					Motion_Info robot(MyRobotID, 0, 0, -5, !MyRobotBlue);
+					int CommandSize = robot.Get_Size();
+					char* CommandArray = robot.Get_pszRecv();
+					nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+				}
+				else {
+					Motion_Info robot(MyRobotID, 1, 0, 0, !MyRobotBlue);
+					int CommandSize = robot.Get_Size();
+					char* CommandArray = robot.Get_pszRecv();
+					nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+				}
+			}
+		}
+		
 		loop++;
 	}
 	closesocket(soRecv);
