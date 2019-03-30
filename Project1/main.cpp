@@ -1,7 +1,9 @@
 #include <iostream>
 #include <thread>
+#include "serial_port.h"
 #include <WinSock2.h>
 #include <math.h>
+
 #include<windows.h>
 #include "vision_detection.pb.h"
 #include "zss_debug.pb.h"
@@ -9,7 +11,6 @@
 #include "Motion_Info.h"
 #include "model.h"
 #include "ERRT.h"
-
 #define pi 3.1415926
 # define MyRobotBlue true
 # define MyRobotID 0
@@ -84,7 +85,7 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 			// cout << "blue " << car.robot_id() << ": " << car.x() / 10.0 << ' ' << -car.y() / 10.0 << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x() / 10.0, -car.y() / 10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
-				cout << "my robot in blue: " << endl << "robot_x = " << car.x() << " robot_y = " << car.y()  << endl;
+				// cout << "my robot in blue: " << endl << "robot_x = " << car.x() << " robot_y = " << car.y()  << endl;
 			}
 			else {
 				obstacle.push_back(Robot(car.x() / 10.0, -car.y() / 10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
@@ -102,7 +103,7 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 			// cout << "yellow " << car.robot_id() << ": " << car.x() / 10.0<< ' ' << -car.y() / 10.0<< ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x()/10.0, -car.y()/10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
-				cout << "my robot in yellow: " << endl << "robot_x = " << car.x() << " robot_y = " << car.y() << endl;
+				// cout << "my robot in yellow: " << endl << "robot_x = " << car.x() << " robot_y = " << car.y() << endl;
 				// cout << "now is my robot in yellow: " << car.robot_id() << endl;
 			}
 			else {
@@ -126,15 +127,15 @@ void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& er
 		start = myRobot.pos();
 	}
 
-	cout << "start_x = " << start.getX() << " ---- start_y = " << start.getY() << endl;
+	// cout << "start_x = " << start.getX() << " ---- start_y = " << start.getY() << endl;
 	Coord goal(0, 0);
-	cout << "goal_x = " << goal.getX() << " ---- goal_y = " << goal.getY() << endl;
+	// cout << "goal_x = " << goal.getX() << " ---- goal_y = " << goal.getY() << endl;
 	// Coord goal = errtpath[1];
 	double dir = myRobot.orientation();
-	cout << "robot orientation = " << dir << endl;
+	// cout << "robot orientation = " << dir << endl;
 	double dist = start.dist(goal);
 	double towards = atan2(goal.getX() - start.getX(), goal.getY() - start.getY());
-	cout << "towards = "<< towards << endl;
+	// cout << "towards = "<< towards << endl;
 	vangl =  - 400 * (towards - dir) / dt;
 	double global_x = goal.getX(), global_y = goal.getY();
 	double robot_x = global_x * cos(dir) + global_y * sin(dir);
@@ -146,7 +147,7 @@ void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& er
 	// double gamma = 2;
 	// double vx = (goal.getX() - start.getX()) / dist * gamma;
 	// double vy = -(goal.getY() - start.getY()) / dist * gamma;
-	cout << "tang_vel: " << vtang << " ---- norm_vel: " << vnorm << "---angular_vel: " << vangl << endl;
+	// cout << "tang_vel: " << vtang << " ---- norm_vel: " << vnorm << "---angular_vel: " << vangl << endl;
 }
 
 
@@ -195,6 +196,34 @@ int main(void)
 	CoordVector PastSuccess;
 	thread recvThread(recvFunc, soRecv, si_remote);
 	recvThread.detach();
+
+	BYTE startPacket1[25] = { 0xff,0xb0,0x01,0x02,0x03,0x00,0x00,0x00,
+							   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+							   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x31 };
+	BYTE startPacket2[25] = { 0xff,0xb0,0x04,0x05,0x06,0x10,0x00,0x00,
+							   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+							   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x85 };
+
+	BYTE testPacket[25] = { 0xff, 0x00, 0x01, 0x01, 0x00, 0xa0, 0x00, 0x00,
+				   0x00, 0x00, 0x00, 0x00, 0x00, 0x00,0x00, 0x00,
+				   0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00 };
+
+	CSerialPort robotSerial("COM6", 115200UL, 8, NOPARITY, ONESTOPBIT);
+	robotSerial.openComm();
+	robotSerial.getReadyToSend();
+	//robotSerial.sendMessage(MyRobotID, 100, 100, 0);
+	// robotSerial.writeToComm(startPacket1, 25);
+	// Sleep(1000);
+	// robotSerial.writeToComm(startPacket2, 25);
+	// Sleep(1000);
+	int it = 0;
+	while (it++ < 100)
+	{
+		robotSerial.writeToComm(testPacket, 25);
+	}
+
+
+	/*
 	while (true) {
 		// visionÀà
 		
@@ -264,8 +293,9 @@ int main(void)
 		nRet = sendto(soDebug, MSGRecv, MSGsize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
 		
 		Coord medGoal = errt_path[1];
-	
 		
+
+		/*
 		while (true) {
 			nRet = recvfrom(soRecv, pszRecv, 4096, 0, (SOCKADDR*)&si_remote, &dwSendSize);
 			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
@@ -306,9 +336,9 @@ int main(void)
 				}
 			}
 		}
-		
 		loop++;
 	}
+	*/
 	closesocket(soRecv);
 	delete[] pszRecv;
 	closesocket(soSend);

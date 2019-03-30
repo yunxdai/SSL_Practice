@@ -39,6 +39,9 @@
     <ClInclude Include="zss_debug.pb.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="serial_port.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="grSim_Commands.pb.cc">
@@ -63,6 +66,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="zss_debug.pb.cc">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="serial_port.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

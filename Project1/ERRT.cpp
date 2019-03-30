@@ -3,10 +3,10 @@
 #include <ctime>
 //#define WIDTH 450
 //#define LENGTH 600
-#define WIDTH 900
-#define LENGTH 1200
-#define ORIGINAL_X -600
-#define ORIGINAL_Y -450
+#define WIDTH 400
+#define LENGTH 600
+#define ORIGINAL_X -300
+#define ORIGINAL_Y -200
 #define STEP 20
 #define PGOAL 0.2
 #define PWAYPOINT 0.3

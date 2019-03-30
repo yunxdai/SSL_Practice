@@ -25,6 +25,7 @@
     <ClInclude Include="grSim_Replacement.pb.h" />
     <ClInclude Include="model.h" />
     <ClInclude Include="Motion_Info.h" />
+    <ClInclude Include="serial_port.h" />
     <ClInclude Include="vision_detection.pb.h" />
     <ClInclude Include="zss_debug.pb.h" />
   </ItemGroup>
@@ -35,6 +36,7 @@
     <ClCompile Include="grSim_Replacement.pb.cc" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Motion_Info.cpp" />
+    <ClCompile Include="serial_port.cpp" />
     <ClCompile Include="vision_detection.pb.cc" />
     <ClCompile Include="zss_debug.pb.cc" />
   </ItemGroup>
@@ -50,6 +52,7 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
+    <UseOfMfc>Dynamic</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -57,6 +60,7 @@
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
+    <UseOfMfc>Dynamic</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
