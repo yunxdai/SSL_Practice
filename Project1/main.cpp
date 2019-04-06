@@ -12,8 +12,9 @@
 #include "model.h"
 #include "ERRT.h"
 #define pi 3.1415926
-# define MyRobotBlue true
-# define MyRobotID 0
+# define MyRobotBlue false
+# define MyRobotID 3
+#define SendRobotID 1
 using namespace std;
 #pragma comment(lib, "libprotobuf.lib")
 #pragma comment(lib, "ws2_32.lib")
@@ -85,7 +86,7 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 			// cout << "blue " << car.robot_id() << ": " << car.x() / 10.0 << ' ' << -car.y() / 10.0 << ' ' << car.vel_x() << ' ' << car.vel_y() << ' ' << car.rotate_vel() << ' ' << endl;
 			if (car.robot_id() == MyRobotID) {
 				myRobot.setRobotParam(car.x() / 10.0, -car.y() / 10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel());
-				// cout << "my robot in blue: " << endl << "robot_x = " << car.x() << " robot_y = " << car.y()  << endl;
+				cout << "my robot in blue: " << endl << "robot_x = " << car.x() << " robot_y = " << car.y()  << endl;
 			}
 			else {
 				obstacle.push_back(Robot(car.x() / 10.0, -car.y() / 10.0, car.vel_x(), car.vel_y(), car.orientation(), car.rotate_vel()));
@@ -117,37 +118,61 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 		}
 	}
 }
-const double dt = 100;
-void generateMotion(double& vtang, double& vnorm, double& vangl, CoordVector& errtpath, const Robot& myRobot, bool flag) {
-	Coord start;
-	if (flag == TRUE) {
-		start = errtpath[0];
+double countT;
+void Ttracj(Coord& start, Coord& end, double& vx, double& vy, double & w, double direction, double orientation) {
+	if (start.dist(end) < ROBOTSIZE) {
+		vx = vy = 0;
 	}
-	else {
-		start = myRobot.pos();
-	}
+	/*else if (start.dist(end) < 200) {
+		double v = 200;
+		vx = v * cos(direction - orientation);
+		vy = v * sin(direction - orientation);
 
-	// cout << "start_x = " << start.getX() << " ---- start_y = " << start.getY() << endl;
-	Coord goal(0, 0);
-	// cout << "goal_x = " << goal.getX() << " ---- goal_y = " << goal.getY() << endl;
-	// Coord goal = errtpath[1];
-	double dir = myRobot.orientation();
-	// cout << "robot orientation = " << dir << endl;
-	double dist = start.dist(goal);
-	double towards = atan2(goal.getX() - start.getX(), goal.getY() - start.getY());
-	// cout << "towards = "<< towards << endl;
-	vangl =  - 400 * (towards - dir) / dt;
-	double global_x = goal.getX(), global_y = goal.getY();
-	double robot_x = global_x * cos(dir) + global_y * sin(dir);
-	double robot_y = global_x * sin(dir) - global_y * cos(dir);
-	vtang = dist / dt;
-	vnorm = 0;
-	//vtang = ((robot_x - start.getX()) / dt);
-	// vnorm = -((robot_y - start.getY()) / dt);
-	// double gamma = 2;
-	// double vx = (goal.getX() - start.getX()) / dist * gamma;
-	// double vy = -(goal.getY() - start.getY()) / dist * gamma;
-	// cout << "tang_vel: " << vtang << " ---- norm_vel: " << vnorm << "---angular_vel: " << vangl << endl;
+	}*/
+	else{// if (start.dist(end) < 2 * ROBOTSIZE) {
+		//double v = start.dist(end) ;
+		double v = 200;
+		cout << "dist = " << v << endl;
+		vx = v * cos(direction - orientation);
+		vy = v * sin(direction - orientation);
+		w = direction - orientation;
+		// vx = 100 / start.dist(end) * (end.getX() - start.getX());
+		// vy = 100 / start.dist(end) * (end.getY() - start.getY());
+	}
+	/*
+	else {
+		vx = -sqrt(start.dist(end)) * (end.getX() - start.getX());
+		vy = -sqrt(start.dist(end)) * (end.getY() - start.getY());
+	}
+	*/
+	//// angle 为机器人与目标点的方向 与机器人朝向的夹角
+	//double v = sqrt(vx*vx + vy * vy);
+	//double deltaT = 0.01;
+	//double ACCMAX = 1000;
+	//double Vmax = 200;
+	//countT = (ACCMAX + Vmax * Vmax) / (Vmax*ACCMAX);
+	//double ta = Vmax / ACCMAX;
+	//double t = 0;
+	//// vx 梯形
+	//
+	//if (0 < t < ta) {
+	//	v += ACCMAX * deltaT;
+	//	t += deltaT;
+	//}
+	//else if (t < countT - ta) {
+	//	v = v;
+	//	t += deltaT;
+	//}
+	//else if (t<countT){
+	//	v -= ACCMAX * deltaT;
+	//	t += deltaT;
+	//}
+	//else {
+	//	v = 0;
+	//}
+	//vx = v * cos(angle);
+	//vy = v * sin(angle);
+	//cout << "vx = " << vx << " vy = " << vy << endl;
 }
 
 
@@ -184,10 +209,11 @@ int main(void)
 	if (SocketSendInit(soSend, si_local, SendADDR, SendPort) == false) return 1;
 	
 	// 画图部分
+	SOCKADDR_IN si_debug;
 	const int DebugPort = 20001;
 	SOCKET soDebug;
 	const char* DebugADDR = RecvADDR;
-	if (SocketSendInit(soDebug, si_local, DebugADDR, DebugPort) == false) return 1;
+	if (SocketSendInit(soDebug, si_debug, DebugADDR, DebugPort) == false) return 1;
 	
 
 
@@ -197,39 +223,22 @@ int main(void)
 	thread recvThread(recvFunc, soRecv, si_remote);
 	recvThread.detach();
 
-	BYTE startPacket1[25] = { 0xff,0xb0,0x01,0x02,0x03,0x00,0x00,0x00,
-							   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-							   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x31 };
-	BYTE startPacket2[25] = { 0xff,0xb0,0x04,0x05,0x06,0x10,0x00,0x00,
-							   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-							   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x85 };
-
-	BYTE testPacket[25] = { 0xff, 0x00, 0x01, 0x01, 0x00, 0xa0, 0x00, 0x00,
-				   0x00, 0x00, 0x00, 0x00, 0x00, 0x00,0x00, 0x00,
-				   0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00 };
-
 	CSerialPort robotSerial("COM6", 115200UL, 8, NOPARITY, ONESTOPBIT);
 	robotSerial.openComm();
 	robotSerial.getReadyToSend();
-	//robotSerial.sendMessage(MyRobotID, 100, 100, 0);
-	// robotSerial.writeToComm(startPacket1, 25);
-	// Sleep(1000);
-	// robotSerial.writeToComm(startPacket2, 25);
-	// Sleep(1000);
-	int it = 0;
-	while (it++ < 100)
-	{
-		robotSerial.writeToComm(testPacket, 25);
-	}
+	robotSerial.sendMessage(MyRobotID, 100, 100, 0);
 
-
-	/*
+	
 	while (true) {
 		// vision类
 		
 		Robot myRobot;
 		RobotVector obsRobot;
+
+
 		Coord goal(0,0);
+
+
 		recvFlag = false;
 		Sleep(10);
 		int nRet = 0; // 接收的数据长度
@@ -284,28 +293,41 @@ int main(void)
 			end->set_y(next_node.getY());
 			line->set_forward(TRUE);
 			line->set_back(TRUE);
-			cout << "i = " << i << endl;
+			// cout << "i = " << i << endl;
 		}
 
 		int MSGsize = msgs.ByteSize();
 		char* MSGRecv = new char[MSGsize];
 		msgs.SerializePartialToArray(MSGRecv, MSGsize);
-		nRet = sendto(soDebug, MSGRecv, MSGsize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
-		
-		Coord medGoal = errt_path[1];
-		
+		nRet = sendto(soDebug, MSGRecv, MSGsize, 0, (SOCKADDR*)&si_debug, sizeof(SOCKADDR));
+		// Coord start = errt_path[0];
+		/*Coord medium = errt_path[1];*/
+		// Coord start(195, -95);
+		Coord medium = errt_path[1];
 
-		/*
+		
 		while (true) {
 			nRet = recvfrom(soRecv, pszRecv, 4096, 0, (SOCKADDR*)&si_remote, &dwSendSize);
 			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
+			Coord start = myRobot.pos();
 			double theta = -myRobot.orientation();
-			cout << "theta = " << theta << endl;
-			double direction = atan2(medGoal.getY() - myRobot.pos().getY(), medGoal.getX() - myRobot.pos().getX());
+			double vx, vy, w;
+			double direction = atan2(medium.getY() - start.getY(), medium.getX() - start.getX());
+			cout << "orientation = " << theta << " direction = " << direction << endl;
+			Ttracj(start, medium, vx, vy, w, direction, theta);
+			cout << "vx = " << vx << " vy = " << vy << endl;
+			/*Motion_Info robot(SendRobotID, vx, vy, 0, !MyRobotBlue);
+			int CommandSize = robot.Get_Size();
+			char* CommandArray = robot.Get_pszRecv();*/
+			robotSerial.sendMessage(SendRobotID, vx, vy, w * 30);
+			// nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
+			/*Motion_Info robot2(SendRobotID, 0, 0, 0, !MyRobotBlue);
+			CommandSize = robot2.Get_Size();
+			CommandArray = robot2.Get_pszRecv();
+			robotSerial.sendMessage(SendRobotID, 0, 0, 0);*/
+			// nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
 
-
-
-			if (medGoal.dist(myRobot.pos()) < ROBOTSIZE) {
+			/*if (medGoal.dist(myRobot.pos()) < 1) {
 				Motion_Info robot(MyRobotID, 0, 0, 0, !MyRobotBlue);
 				int CommandSize = robot.Get_Size();
 				char* CommandArray = robot.Get_pszRecv();
@@ -317,11 +339,11 @@ int main(void)
 					double vangl;
 					if (theta > direction) {
 						cout << "theta = " << theta << "direction = " << direction << endl;
-						vangl = 5;
+						vangl = 1;
 					}
 					else {
 						cout << "theta = " << theta << "direction = " << direction << endl;
-						vangl = -5;
+						vangl = -1;
 					}
 					Motion_Info robot(MyRobotID, 0, 0, vangl , !MyRobotBlue);
 					int CommandSize = robot.Get_Size();
@@ -334,11 +356,10 @@ int main(void)
 					char* CommandArray = robot.Get_pszRecv();
 					nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
 				}
-			}
+			}*/
 		}
 		loop++;
 	}
-	*/
 	closesocket(soRecv);
 	delete[] pszRecv;
 	closesocket(soSend);
@@ -347,15 +368,3 @@ int main(void)
 	return 0;
 
 }
-/*
-float clip(float num, const float min, const float max) {
-if (num > max) num = max;
-else if (num < min) num = min;
-return num;
-}
-float angle_normalize(float angle) {
-if (angle > pi)	angle -= 2 * pi;
-else if (angle < -pi) angle += 2 * pi;
-return angle;
-}
-*/

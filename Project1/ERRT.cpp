@@ -7,7 +7,7 @@
 #define LENGTH 600
 #define ORIGINAL_X -300
 #define ORIGINAL_Y -200
-#define STEP 20
+#define STEP 10
 #define PGOAL 0.2
 #define PWAYPOINT 0.3
 
@@ -92,26 +92,56 @@ void ERRTPlanner::findPath(TNodeVector& path) {
 }
 
 void ERRTPlanner::smoothPath(TNodeVector& path, CoordVector& sPath) {
-	int i, id, len;
+	/*int i = 0, id, len;
 	bool flag;
 	id = 0;
 	len = path.size();
-	sPath.push_back(path[id].pos);
-	while (id != len - 1){
-		flag = false;
-		for (i = len - 1; i > id + 1; i--) {
-			if(checkCollision(path[id].pos, path[i].pos))	continue;
-			flag = true;
-			break;
+	sPath.push_back(path[id].pos);*/
+	//while (id != len - 1){
+	//	flag = false;
+	//	for (i = len - 1; i > id + 1; i--) {
+	//		if(checkCollision(path[id].pos, path[i].pos))	continue;
+	//		flag = true;
+	//		break;
+	//	}
+	//	if (flag) {
+	//		path[id].parentID = i;
+	//		id = i;
+	//	}
+	//	else {
+	//		id++;
+	//	}
+	//	sPath.push_back(path[id].pos);
+	//}
+
+
+	int i = 0;
+	int len = path.size();
+	sPath.push_back(path[i].pos);
+	while (i != len - 1) {
+		bool collision = false;
+		auto node1 = path[i];
+		auto node3 = path[i + 2];
+		double theta = atan2(node3.pos.getY() - node1.pos.getY(), node3.pos.getX() - node1.pos.getX());
+		auto test_node = node1.pos;
+		double distance = test_node.dist(node3.pos);
+		while (distance > STEP) {
+			if (checkCollision(test_node, node3.pos)) {
+				collision = true;
+				break;
+			}
+			test_node.setX(test_node.getX() + STEP * cos(theta));
+			test_node.setY(test_node.getY() + STEP * sin(theta));
+			distance = test_node.dist(node3.pos);
 		}
-		if (flag) {
-			path[id].parentID = i;
-			id = i;
+		if (collision) {
+			i++;
 		}
 		else {
-			id++;
+			path[i + 2].parentID = i;
+			i = i + 2;
 		}
-		sPath.push_back(path[id].pos);
+		sPath.push_back(path[i].pos);
 	}
 }
 
