@@ -2,7 +2,7 @@
 #ifndef MODEL_H
 #define MODEL_H
 #include <cmath>
-#define ROBOTSIZE 5
+#define ROBOTSIZE 10
 class Coord			//×ø±êÀà
 {
 public:
@@ -65,7 +65,7 @@ public:
 	}
 	bool isCollision(Robot ele) { return _pos.dist(ele.pos()) < (_size + ele.size()); }
 	bool isCollision(Coord pa, Coord pb) {
-		return abs((pa.y()-pb.y())*_pos.x()-(pa.x()-pb.x())*_pos.y()+pa.x()*pb.y()-pa.y()*pb.x())/pa.dist(pb)<_size;
+		return abs((pa.y()-pb.y())*_pos.x()-(pa.x()-pb.x())*_pos.y()+pa.x()*pb.y()-pa.y()*pb.x())/pa.dist(pb)<2*_size;
 	}
 private:
 	Coord _pos;

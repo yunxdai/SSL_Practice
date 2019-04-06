@@ -44,7 +44,7 @@ public:
 	bool checkNewP2Goal(Coord& newP);
 	void findPath(TNodeVector& path);
 	void smoothPath(TNodeVector& path, CoordVector& sPath);
-	bool findERRTPath(CoordVector& trajVec);	
+	bool findERRTPath(CoordVector& trajVec, CoordVector& origVec);	
 private:
 	ERRTTree _errt;
 	Robot _robot;

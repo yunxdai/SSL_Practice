@@ -114,14 +114,47 @@ void ERRTPlanner::smoothPath(TNodeVector& path, CoordVector& sPath) {
 	//	sPath.push_back(path[id].pos);
 	//}
 
+	
+
+
 
 	int i = 0;
 	int len = path.size();
 	sPath.push_back(path[i].pos);
-	while (i != len - 1) {
+	// double radius = 3 * ROBOTSIZE;
+	while (true) {
 		bool collision = false;
 		auto node1 = path[i];
-		auto node3 = path[i + 2];
+		for (int j = len - 1; j >= i+1; j--) {
+			auto node3 = path[j];
+			// double theta = atan2(node3.pos.getY() - node1.pos.getY(), node3.pos.getX() - node1.pos.getX());
+			// auto test_node = node1.pos;
+			// double distance = test_node.dist(node3.pos);
+			if (checkCollision(node1.pos, node3.pos)) {
+				collision = true;
+				continue;
+			}
+			else {
+
+				sPath.push_back(path[j].pos);
+				// path[j].parentID = i;
+				i = j;
+				collision = false;
+				break;
+			}
+			
+		}
+		
+		if (i == len - 1) {
+			if (!collision) break;
+			else {
+				sPath.push_back(path[i].pos);
+				break;
+			}
+		}
+		// collision = false;
+		i++;
+		/*auto node3 = path[i + 2];
 		double theta = atan2(node3.pos.getY() - node1.pos.getY(), node3.pos.getX() - node1.pos.getX());
 		auto test_node = node1.pos;
 		double distance = test_node.dist(node3.pos);
@@ -140,12 +173,12 @@ void ERRTPlanner::smoothPath(TNodeVector& path, CoordVector& sPath) {
 		else {
 			path[i + 2].parentID = i;
 			i = i + 2;
-		}
-		sPath.push_back(path[i].pos);
+		}*/
+		// sPath.push_back(path[i].pos);
 	}
 }
 
-bool ERRTPlanner::findERRTPath(CoordVector& trajVec) {
+bool ERRTPlanner::findERRTPath(CoordVector& trajVec, CoordVector& origVec) {
 	srand((unsigned)time(NULL));
 	_errt.addNewTNode(ERRTNode(_start));
 	bool goalSuccessFlag = false;
@@ -174,17 +207,23 @@ bool ERRTPlanner::findERRTPath(CoordVector& trajVec) {
 	if (goalSuccessFlag) {
 		TNodeVector path;
 		CoordVector sPath;
-		int i, len;
+		int i, len1, len2;
 		trajVec.clear();
 		trajVec.shrink_to_fit();
 		// trajVec.swap(CoordVector());
 		findPath(path);
-		// smoothPath(path, sPath);
-		// len = sPath.size();
-		len = path.size();
-		for (i = len - 1; i >= 0; i--)
-			// trajVec.push_back(sPath[i]);
-			trajVec.push_back(path[i].pos);
+		smoothPath(path, sPath);
+		len1 = sPath.size();
+		if (len1 == 1) {
+			return false;
+		}
+		len2 = path.size();
+		for (i = len1 - 1; i >= 0; i--)
+			trajVec.push_back(sPath[i]);
+			// trajVec.push_back(path[i].pos);
+		for (i = len2 - 1; i >= 0; i--) {
+			origVec.push_back(path[i].pos);
+		}
 		return true;
 	}
 	else

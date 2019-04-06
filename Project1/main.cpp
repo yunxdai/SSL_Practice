@@ -14,7 +14,7 @@
 #define pi 3.1415926
 # define MyRobotBlue false
 # define MyRobotID 3
-#define SendRobotID 1
+#define SendRobotID 3
 using namespace std;
 #pragma comment(lib, "libprotobuf.lib")
 #pragma comment(lib, "ws2_32.lib")
@@ -120,7 +120,7 @@ void HandleRecvData(Vision_DetectionFrame &vision, char* &pszRecv, RobotVector &
 }
 double countT;
 void Ttracj(Coord& start, Coord& end, double& vx, double& vy, double & w, double direction, double orientation) {
-	if (start.dist(end) < ROBOTSIZE) {
+	if (start.dist(end) < 3 * ROBOTSIZE) {
 		vx = vy = 0;
 	}
 	/*else if (start.dist(end) < 200) {
@@ -131,11 +131,12 @@ void Ttracj(Coord& start, Coord& end, double& vx, double& vy, double & w, double
 	}*/
 	else{// if (start.dist(end) < 2 * ROBOTSIZE) {
 		//double v = start.dist(end) ;
-		double v = 200;
+		double v = 120;
 		cout << "dist = " << v << endl;
 		vx = v * cos(direction - orientation);
 		vy = v * sin(direction - orientation);
-		w = direction - orientation;
+		w = 0;
+		//w = direction - orientation;
 		// vx = 100 / start.dist(end) * (end.getX() - start.getX());
 		// vy = 100 / start.dist(end) * (end.getY() - start.getY());
 	}
@@ -226,7 +227,7 @@ int main(void)
 	CSerialPort robotSerial("COM6", 115200UL, 8, NOPARITY, ONESTOPBIT);
 	robotSerial.openComm();
 	robotSerial.getReadyToSend();
-	robotSerial.sendMessage(MyRobotID, 100, 100, 0);
+	//robotSerial.sendMessage(MyRobotID, 100, 100, 0);
 
 	
 	while (true) {
@@ -266,7 +267,8 @@ int main(void)
 		// ERRT PLANNING
 		ERRTPlanner errt_planner = ERRTPlanner(myRobot, goal, obsRobot, PastSuccess);
 		CoordVector errt_path;
-		if (errt_planner.findERRTPath(errt_path) == false) continue;
+		CoordVector origin_path;
+		if (errt_planner.findERRTPath(errt_path,origin_path) == false) continue;
 		if (PastSuccess.empty())
 			PastSuccess = errt_path;
 		else {
@@ -295,11 +297,29 @@ int main(void)
 			line->set_back(TRUE);
 			// cout << "i = " << i << endl;
 		}
-
+		for (int i = 0; i < origin_path.size() - 1; i++) {
+			auto node = origin_path[i];
+			auto next_node = origin_path[i + 1];
+			auto *msg = msgs.add_msgs();
+			msg->set_type(ZSS::Protocol::Debug_Msg_Debug_Type_LINE);
+			msg->set_color(ZSS::Protocol::Debug_Msg_Color_GREEN);
+			auto* line = msg->mutable_line();
+			auto* start = line->mutable_start();
+			auto* end = line->mutable_end();
+			start->set_x(node.getX());
+			start->set_y(node.getY());
+			end->set_x(next_node.getX());
+			end->set_y(next_node.getY());
+			line->set_forward(TRUE);
+			line->set_back(TRUE);
+			// cout << "i = " << i << endl;
+		}
 		int MSGsize = msgs.ByteSize();
 		char* MSGRecv = new char[MSGsize];
 		msgs.SerializePartialToArray(MSGRecv, MSGsize);
 		nRet = sendto(soDebug, MSGRecv, MSGsize, 0, (SOCKADDR*)&si_debug, sizeof(SOCKADDR));
+
+
 		// Coord start = errt_path[0];
 		/*Coord medium = errt_path[1];*/
 		// Coord start(195, -95);
@@ -310,6 +330,14 @@ int main(void)
 			nRet = recvfrom(soRecv, pszRecv, 4096, 0, (SOCKADDR*)&si_remote, &dwSendSize);
 			HandleRecvData(vision, pszRecv, obsRobot, myRobot);
 			Coord start = myRobot.pos();
+			if (start.dist(medium) < 3 * ROBOTSIZE) {
+				break;
+			}
+			for (auto obstacle : obsRobot) {
+				if (obstacle.isCollision(myRobot)) {
+					break;
+				}
+			}
 			double theta = -myRobot.orientation();
 			double vx, vy, w;
 			double direction = atan2(medium.getY() - start.getY(), medium.getX() - start.getX());
@@ -319,7 +347,7 @@ int main(void)
 			/*Motion_Info robot(SendRobotID, vx, vy, 0, !MyRobotBlue);
 			int CommandSize = robot.Get_Size();
 			char* CommandArray = robot.Get_pszRecv();*/
-			robotSerial.sendMessage(SendRobotID, vx, vy, w * 30);
+			robotSerial.sendMessage(SendRobotID, vx, vy, 0);
 			// nRet = sendto(soSend, CommandArray, CommandSize, 0, (SOCKADDR*)&si_local, sizeof(SOCKADDR));
 			/*Motion_Info robot2(SendRobotID, 0, 0, 0, !MyRobotBlue);
 			CommandSize = robot2.Get_Size();
