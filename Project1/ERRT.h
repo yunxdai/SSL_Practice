@@ -45,6 +45,7 @@ public:
 	void findPath(TNodeVector& path);
 	void smoothPath(TNodeVector& path, CoordVector& sPath);
 	bool findERRTPath(CoordVector& trajVec, CoordVector& origVec);	
+	void extendRRTPath(CoordVector& formerPath, CoordVector& latterPath);
 private:
 	ERRTTree _errt;
 	Robot _robot;

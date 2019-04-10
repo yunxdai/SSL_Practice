@@ -2,7 +2,7 @@
 #ifndef MODEL_H
 #define MODEL_H
 #include <cmath>
-#define ROBOTSIZE 10
+#define ROBOTSIZE 13
 class Coord			//×ø±êÀà
 {
 public:
@@ -17,6 +17,14 @@ public:
 			this->_y = ele.y();
 		}
 		return *this;
+	}
+	bool operator == (const Coord& ele) {
+		if (this != &ele) {
+			if (this->_x != ele._x || this->_x != ele._x) { 
+				return false; 
+			}
+		}
+		return true;
 	}
 	double dist(Coord ele) { return sqrt((_x - ele.x())*(_x - ele.x()) + (_y - ele.y())*(_y - ele.y())); }
 	double getX(void) { return _x; }
@@ -63,9 +71,13 @@ public:
 		_rotationVel = rotationVel;
 		_size = size;
 	}
-	bool isCollision(Robot ele) { return _pos.dist(ele.pos()) < (_size + ele.size()); }
+	bool isCollision(Robot ele) { return _pos.dist(ele.pos()) < _size * 2; }
 	bool isCollision(Coord pa, Coord pb) {
-		return abs((pa.y()-pb.y())*_pos.x()-(pa.x()-pb.x())*_pos.y()+pa.x()*pb.y()-pa.y()*pb.x())/pa.dist(pb)<2*_size;
+		if ((pa.x() - _pos.x()) > (2 * ROBOTSIZE) && (pb.x() - _pos.x()) > (2 * ROBOTSIZE))	return false;
+		else if ((pa.x() - _pos.x()) < -(2 * ROBOTSIZE) && (pb.x() - _pos.x()) < -(2 * ROBOTSIZE))	return false;
+		else if ((pa.y() - _pos.y()) > (2 * ROBOTSIZE) && (pb.y() - _pos.y()) > (2 * ROBOTSIZE))	return false;
+		else if ((pa.y() - _pos.y()) < -(2 * ROBOTSIZE) && (pb.y() - _pos.y()) < -(2 * ROBOTSIZE))	return false;
+		else	return abs((pa.y() - pb.y())*_pos.x() - (pa.x() - pb.x())*_pos.y() + pa.x()*pb.y() - pa.y()*pb.x()) / pa.dist(pb) < (_size * 2 );
 	}
 private:
 	Coord _pos;

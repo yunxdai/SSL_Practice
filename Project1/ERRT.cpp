@@ -7,7 +7,7 @@
 #define LENGTH 600
 #define ORIGINAL_X -300
 #define ORIGINAL_Y -200
-#define STEP 10
+#define STEP 3 * ROBOTSIZE
 #define PGOAL 0.2
 #define PWAYPOINT 0.3
 
@@ -65,10 +65,11 @@ bool ERRTPlanner::checkCollision(Coord& nearestP, Coord& newP) {
 	int i, len;
 	Robot newRobot = Robot(newP, 0, 0, 0);
 	len = _obsVec.size();
+
 	for (i = 0; i < len; i++) {
 		if (_obsVec[i].isCollision(newRobot) || _obsVec[i].isCollision(nearestP, newP)) {
-//			std::cout << "Robot " << i << " is collision" << std::endl;
-//			std::cout << "Robot's position is x = " << _obsVec[i].pos().x() << " y = " << _obsVec[i].pos().y() << std::endl;
+			std::cout << "Robot " << i << " is collision" << std::endl;
+			std::cout << "Robot's position is x = " << _obsVec[i].pos().x() << " y = " << _obsVec[i].pos().y() << std::endl;
 			return true;
 		}
 	}
@@ -92,46 +93,14 @@ void ERRTPlanner::findPath(TNodeVector& path) {
 }
 
 void ERRTPlanner::smoothPath(TNodeVector& path, CoordVector& sPath) {
-	/*int i = 0, id, len;
-	bool flag;
-	id = 0;
-	len = path.size();
-	sPath.push_back(path[id].pos);*/
-	//while (id != len - 1){
-	//	flag = false;
-	//	for (i = len - 1; i > id + 1; i--) {
-	//		if(checkCollision(path[id].pos, path[i].pos))	continue;
-	//		flag = true;
-	//		break;
-	//	}
-	//	if (flag) {
-	//		path[id].parentID = i;
-	//		id = i;
-	//	}
-	//	else {
-	//		id++;
-	//	}
-	//	sPath.push_back(path[id].pos);
-	//}
-
-	
-
-
-
 	int i = 0;
 	int len = path.size();
 	sPath.push_back(path[i].pos);
-	// double radius = 3 * ROBOTSIZE;
 	while (true) {
-		bool collision = false;
 		auto node1 = path[i];
-		for (int j = len - 1; j >= i+1; j--) {
+		for (int j = len - 1; j >= i + 1; j--) {
 			auto node3 = path[j];
-			// double theta = atan2(node3.pos.getY() - node1.pos.getY(), node3.pos.getX() - node1.pos.getX());
-			// auto test_node = node1.pos;
-			// double distance = test_node.dist(node3.pos);
 			if (checkCollision(node1.pos, node3.pos)) {
-				collision = true;
 				continue;
 			}
 			else {
@@ -139,46 +108,49 @@ void ERRTPlanner::smoothPath(TNodeVector& path, CoordVector& sPath) {
 				sPath.push_back(path[j].pos);
 				// path[j].parentID = i;
 				i = j;
-				collision = false;
 				break;
 			}
-			
 		}
-		
+
+		if (i == len - 2) {
+			sPath.push_back(path[i+1].pos);
+			break;
+		}
 		if (i == len - 1) {
-			if (!collision) break;
-			else {
-				sPath.push_back(path[i].pos);
-				break;
-			}
+			break;
 		}
-		// collision = false;
 		i++;
-		/*auto node3 = path[i + 2];
-		double theta = atan2(node3.pos.getY() - node1.pos.getY(), node3.pos.getX() - node1.pos.getX());
-		auto test_node = node1.pos;
-		double distance = test_node.dist(node3.pos);
-		while (distance > STEP) {
-			if (checkCollision(test_node, node3.pos)) {
-				collision = true;
-				break;
-			}
-			test_node.setX(test_node.getX() + STEP * cos(theta));
-			test_node.setY(test_node.getY() + STEP * sin(theta));
-			distance = test_node.dist(node3.pos);
-		}
-		if (collision) {
-			i++;
-		}
-		else {
-			path[i + 2].parentID = i;
-			i = i + 2;
-		}*/
-		// sPath.push_back(path[i].pos);
 	}
 }
-
-bool ERRTPlanner::findERRTPath(CoordVector& trajVec, CoordVector& origVec) {
+void ERRTPlanner::extendRRTPath(CoordVector& formerPath, CoordVector& latterPath) {
+	double insertThreshold = 20 * ROBOTSIZE;
+	double insertSect = 10 * ROBOTSIZE ;
+	for (int i = 0; i < formerPath.size() - 1; i++) {
+		Coord firstNode = formerPath[i];
+		Coord nextNode = formerPath[i + 1];
+		latterPath.push_back(firstNode);
+		double distInNode = firstNode.dist(nextNode);
+		double thetaInNode = atan2(nextNode.getY() - firstNode.getY(), nextNode.getX() - firstNode.getX());
+		if (distInNode > insertThreshold) {
+			Coord insertNode = firstNode;
+			while (true) {
+				if (insertNode.dist(nextNode) < insertSect) {
+					break;
+				}
+				else {
+					insertNode.setX(insertNode.getX() + insertSect * cos(thetaInNode));
+					insertNode.setY(insertNode.getY() + insertSect * sin(thetaInNode));
+					latterPath.push_back(insertNode);
+				}
+			}
+			latterPath.push_back(nextNode);
+		}
+		else {
+			latterPath.push_back(nextNode);
+		}
+	}
+}
+bool ERRTPlanner::findERRTPath(CoordVector& finalVec, CoordVector& origVec) {
 	srand((unsigned)time(NULL));
 	_errt.addNewTNode(ERRTNode(_start));
 	bool goalSuccessFlag = false;
@@ -204,12 +176,15 @@ bool ERRTPlanner::findERRTPath(CoordVector& trajVec, CoordVector& origVec) {
 		nodeNum++;
 	}
 	// std::cout << "wait" << std::endl;
+	CoordVector trajVec;
 	if (goalSuccessFlag) {
 		TNodeVector path;
 		CoordVector sPath;
 		int i, len1, len2;
-		trajVec.clear();
-		trajVec.shrink_to_fit();
+		finalVec.clear();
+		finalVec.shrink_to_fit();
+		origVec.clear();
+		origVec.shrink_to_fit();
 		// trajVec.swap(CoordVector());
 		findPath(path);
 		smoothPath(path, sPath);
@@ -224,6 +199,8 @@ bool ERRTPlanner::findERRTPath(CoordVector& trajVec, CoordVector& origVec) {
 		for (i = len2 - 1; i >= 0; i--) {
 			origVec.push_back(path[i].pos);
 		}
+		// finalVec = trajVec;
+		extendRRTPath(trajVec, finalVec);
 		return true;
 	}
 	else
